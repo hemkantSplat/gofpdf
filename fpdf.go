@@ -40,6 +40,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/image/webp"
 )
 
 var gl struct {
@@ -2925,7 +2927,7 @@ func (f *Fpdf) WriteLinkID(h float64, displayStr string, linkID int) {
 //
 // width indicates the width of the box the text will be drawn in. This is in
 // the unit of measure specified in New(). If it is set to 0, the bounding box
-//of the page will be taken (pageWidth - leftMargin - rightMargin).
+// of the page will be taken (pageWidth - leftMargin - rightMargin).
 //
 // lineHeight indicates the line height in the unit of measure specified in
 // New().
@@ -2999,6 +3001,8 @@ func (f *Fpdf) ImageTypeFromMime(mimeStr string) (tp string) {
 		tp = "jpg"
 	case "image/gif":
 		tp = "gif"
+	case "image/webp":
+		tp = "webp"
 	default:
 		f.SetErrorf("unsupported image type: %s", mimeStr)
 	}
@@ -3186,6 +3190,8 @@ func (f *Fpdf) RegisterImageOptionsReader(imgName string, options ImageOptions, 
 		info = f.parsepng(r, options.ReadDpi)
 	case "gif":
 		info = f.parsegif(r)
+	case "webp":
+		info = f.parsewebp(r)
 	default:
 		f.err = fmt.Errorf("unsupported image type: %s", options.ImageType)
 	}
@@ -3718,6 +3724,28 @@ func (f *Fpdf) parsegif(r io.Reader) (info *ImageInfoType) {
 	}
 	var img image.Image
 	img, err = gif.Decode(data)
+	if err != nil {
+		f.err = err
+		return
+	}
+	pngBuf := new(bytes.Buffer)
+	err = png.Encode(pngBuf, img)
+	if err != nil {
+		f.err = err
+		return
+	}
+	return f.parsepngstream(pngBuf, false)
+}
+
+// parsegif extracts info from a GIF data (via PNG conversion)
+func (f *Fpdf) parsewebp(r io.Reader) (info *ImageInfoType) {
+	data, err := bufferFromReader(r)
+	if err != nil {
+		f.err = err
+		return
+	}
+	var img image.Image
+	img, err = webp.Decode(data)
 	if err != nil {
 		f.err = err
 		return
