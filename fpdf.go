@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
@@ -3750,8 +3751,16 @@ func (f *Fpdf) parsewebp(r io.Reader) (info *ImageInfoType) {
 		f.err = err
 		return
 	}
+
+	// Create a new image with the same dimensions but with 8-bit depth
+	imgRGBA := image.NewRGBA(img.Bounds())
+
+	// Draw the original image onto the new 8-bit image
+	draw.Draw(imgRGBA, imgRGBA.Bounds(), img, img.Bounds().Min, draw.Src)
+
+	// Now encode the 8-bit image to PNG
 	pngBuf := new(bytes.Buffer)
-	err = png.Encode(pngBuf, img)
+	err = png.Encode(pngBuf, imgRGBA)
 	if err != nil {
 		f.err = err
 		return
